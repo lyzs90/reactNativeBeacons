@@ -24,10 +24,12 @@
   "test": "jest"
  },
  "dependencies": {
-  "react": "~15.4.0",
-  "react-native": "0.41.2",
+  "mathjs": "^3.17.0",
+  "react": "16.1.1",
+  "react-native": "0.50.4",
   "react-native-beacons-manager": "^1.0.1",
-  "react-native-bluetooth-state": "^2.0.0"
+  "react-native-bluetooth-state": "^2.0.0",
+  "react-native-maps": "^0.17.1"
  },
  "devDependencies": {
   "babel-eslint": "^7.1.1",
