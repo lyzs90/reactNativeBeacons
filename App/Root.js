@@ -32,8 +32,10 @@ class Root extends Component {
       },
       // React Native ListView datasource initialization
       dataSource: ds.cloneWithRows([]),
-      userLocation: [],
-      displayData: false
+      userLocation: {},
+      markers: [],
+      displayData: false,
+      statusBarHeight: 1
     };
 
     this.toggleBeaconData = this.toggleBeaconData.bind(this);
@@ -41,6 +43,9 @@ class Root extends Component {
 
   componentWillMount() {
   const _this = this;
+
+  //Hack to ensure the showsMyLocationButton is shown initially. Idea is to force a repaint
+  setTimeout(() => this.setState({ statusBarHeight: 0 }), 500);
 
   Beacons.detectIBeacons();
 
@@ -66,17 +71,36 @@ class Root extends Component {
       'beaconsDidRange',
       (data) => {
         if (data.beacons.length >= 3) {
+          // Beacon trilateration
           const beacons = data.beacons.map(beacon => {
             const { uuid, distance } = beacon;
             const { lat, lng } = whitelist[uuid];
 
             return new Beacon(lat, lng, distance)
           })
-          const userLocation = trilaterate(beacons);
+
+          // Format User Location
+          const [userLat, userLng] = trilaterate(beacons);
+          const userLocation = {
+            latitude: userLat,
+            longitude: userLng
+          }
+
+          // Format Mapmarkers
+          const markers = data.beacons.map(beacon => {
+            const { uuid } = beacon;
+            const { lat, lng } = whitelist[uuid];
+
+            return {
+              latitude: lat,
+              longitude: lng,
+            };
+          })
 
           return this.setState({
             dataSource: this.state.dataSource.cloneWithRows(data.beacons),
-            userLocation
+            userLocation,
+            markers
           });
         }
 
@@ -96,9 +120,17 @@ class Root extends Component {
   }
 
   render() {
-    const { dataSource, displayData } =  this.state;
+    const { dataSource, displayData, markers, userLocation } =  this.state;
+
     return (
-      <View style={styles.container}>
+      <View style={{
+        flex: 1,
+        paddingTop: 60,
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        backgroundColor: '#F5FCFF',
+        paddingTop: this.state.statusBarHeight
+      }}>
         <MapView
           style={styles.map}
           customMapStyle={mapStyle}
@@ -111,7 +143,14 @@ class Root extends Component {
           showsMyLocationButton={true}
           showsUserLocation={true}
           loadingEnabled={true}
-        />
+        >
+          {markers.map((marker, i) => (
+            <MapView.Marker
+              coordinate={marker}
+              key={i}
+            />
+          ))}
+        </MapView>
         <View style={styles.beaconData}>
           {
             this.state.displayData &&
@@ -125,7 +164,7 @@ class Root extends Component {
             onPress={() => {this.toggleBeaconData(); }}
             style={styles.button}
           >
-            <Text style={styles.buttonText}>Show Beacons</Text>
+            <Text style={styles.buttonText}>Beacon Data</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -153,14 +192,6 @@ class Root extends Component {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    flex: 1,
-    paddingTop: 60,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    backgroundColor: '#F5FCFF'
-  },
   headline: {
     fontSize: 20,
     paddingTop: 20,
