@@ -15,7 +15,6 @@ import Beacons from 'react-native-beacons-manager';
 import MapView from 'react-native-maps';
 
 import { Beacon, trilaterate } from './helpers/trilateration';
-import betterTrilaterate from './helpers/aBetterTrilateration';
 import mapStyle from './helpers/mapStyle';
 
 class Root extends Component {
@@ -28,14 +27,13 @@ class Root extends Component {
     this.state = {
       // region information
       whitelist: {
-        '8ce79713-008d-47fc-b40c-7ccbb3bb19e9': { lat: 1.312310, lng: 103.858599 },
-        '6d683042-4970-3258-5832-70494230686d': { lat: 1.312391, lng: 103.858601 },
-        '4a4b441c-ebad-4efc-b35f-548b5439c5b1': { lat: 1.312375, lng: 103.858429 }
+        '8ce79713-008d-47fc-b40c-7ccbb3bb19e9': { lat: 1.312377, lng: 103.858576 },
+        '6d683042-4970-3258-5832-70494230686d': { lat: 1.312373, lng: 103.858540, minor: 1 },
+        '4a4b441c-ebad-4efc-b35f-548b5439c5b1': { lat: 1.312341, lng: 103.858544 }
       },
       // React Native ListView datasource initialization
       dataSource: ds.cloneWithRows([]),
       userLocation: {},
-      userLocation2: {},
       markers: [],
       displayData: false,
       statusBarHeight: 1
@@ -76,11 +74,16 @@ class Root extends Component {
         console.log(data)
         let beacons = [];
         data.beacons.forEach((beacon, i) => {
-          const { uuid, distance } = beacon;
+          const { uuid, rssi } = beacon;
 
           if (whitelist[uuid] !== undefined) {
             const { lat, lng } = whitelist[uuid];
-            beacons.push(new Beacon(lat, lng, distance));
+
+            if (whitelist[uuid].minor && whitelist[uuid].minor === 1) {
+              return beacons.push(new Beacon(lat, lng, rssi));
+            }
+
+            return beacons.push(new Beacon(lat, lng, rssi));
           }
         })
 
@@ -94,11 +97,18 @@ class Root extends Component {
             markers.push({
               latitude: lat,
               longitude: lng,
+              distance
             });
           }
         })
 
+        this.setState({
+          dataSource: this.state.dataSource.cloneWithRows(data.beacons),
+          markers
+        });
+
         if (beacons.length >= 3) {
+          /*
           // Beacon trilateration
           const [userLat, userLng] = trilaterate(beacons);
           const userLocation = {
@@ -107,15 +117,31 @@ class Root extends Component {
           }
 
           this.setState({
-            userLocation,
-            //userLocation2
+            userLocation
           });
+          */
+          return fetch('http://192.168.1.120:3000/result', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(beacons)
+          })
+            .then(res => res.json())
+            .then(res => {
+              console.log(res)
+              return _this.setState({
+                userLocation: {
+                  latitude: res.lat,
+                  longitude: res.lng
+                }
+              })
+            })
+            .catch(err => {
+              console.log(err)
+            })
         }
-
-        return this.setState({
-          dataSource: this.state.dataSource.cloneWithRows(data.beacons),
-          markers
-        });
       }
     );
   }
@@ -131,7 +157,7 @@ class Root extends Component {
   }
 
   render() {
-    const { dataSource, displayData, markers, userLocation, userLocation2 } =  this.state;
+    const { dataSource, displayData, markers, userLocation } =  this.state;
     const userInterpolated = isNumber(userLocation.latitude) && isNumber(userLocation.longitude);
     console.log(`interpolated: ${userInterpolated}, location: ${userLocation.latitude}, ${userLocation.longitude}`)
 
@@ -159,19 +185,31 @@ class Root extends Component {
         >
           {markers.map((marker, i) => (
             <MapView.Marker
-              coordinate={marker}
+              coordinate={{latitude: marker.latitude, longitude: marker.longitude}}
               key={i}
             />
           ))}
-
           {
-           userInterpolated &&
-           <MapView.Marker
+            userInterpolated &&
+            <MapView.Marker
               coordinate={userLocation}
-              key={'userLoc'}
               pinColor={'yellow'}
             />
           }
+          {markers.map((marker, i) => {
+            const colors = ['rgba(77,108,250, 0.5)', 'rgba(222,13,146, 0.5)', 'rgba(68,229,231, 0.5)'];
+            const color = colors[i];
+
+            return <MapView.Circle
+              center={{latitude: marker.latitude, longitude: marker.longitude}}
+              radius={marker.distance}
+              key={i}
+              fillColor={color}
+              strokeColor="rgba(0,0,0,0.5)"
+              zIndex={2}
+              strokeWidth={2}
+            />
+          })}
         </MapView>
         <View style={styles.beaconData}>
           {
@@ -240,7 +278,8 @@ const styles = StyleSheet.create({
   beaconData: {
     flex: 1,
     flexDirection: 'column',
-    justifyContent: 'flex-end'
+    justifyContent: 'flex-end',
+    marginTop: 15
   },
   button: {
     backgroundColor: "#fff",
