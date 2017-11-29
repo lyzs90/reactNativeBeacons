@@ -156,6 +156,13 @@ class Root extends Component {
     });
   }
 
+  fitPadding() {
+    this.map.fitToCoordinates(this.state.markers, {
+      edgePadding: { top: 100, right: 100, bottom: 100, left: 100 },
+      animated: true,
+    });
+  }
+
   render() {
     const { dataSource, displayData, markers, userLocation } =  this.state;
     const userInterpolated = isNumber(userLocation.latitude) && isNumber(userLocation.longitude);
@@ -171,6 +178,7 @@ class Root extends Component {
         paddingTop: this.state.statusBarHeight
       }}>
         <MapView
+          ref={ref => { this.map = ref; }}
           style={styles.map}
           customMapStyle={mapStyle}
           initialRegion={{
@@ -220,6 +228,12 @@ class Root extends Component {
               renderRow={this.renderRow}
             />
             }
+          <TouchableOpacity
+            onPress={() => this.fitPadding()}
+            style={[styles.bubble, styles.button]}
+          >
+            <Text style={styles.buttonText}>My Location</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {this.toggleBeaconData(); }}
             style={styles.button}
@@ -281,10 +295,16 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     marginTop: 15
   },
+  bubble: {
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
   button: {
     backgroundColor: "#fff",
     padding: 15,
-    marginBottom: 50,
+    marginBottom: 10,
     paddingTop: 10,
     paddingBottom: 10,
     borderRadius: 5,
