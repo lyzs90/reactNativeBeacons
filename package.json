@@ -20,6 +20,7 @@
   "iBeacon"
  ],
  "scripts": {
+  "prestart": "react-native-node insert ./background",
   "start": "node node_modules/react-native/local-cli/cli.js start",
   "test": "jest"
  },
@@ -31,6 +32,7 @@
   "react-native-beacons-manager": "^1.0.1",
   "react-native-bluetooth-state": "^2.0.0",
   "react-native-maps": "^0.17.1",
+  "react-native-node": "^3.3.0",
   "trilateration": "0.0.1"
  },
  "devDependencies": {

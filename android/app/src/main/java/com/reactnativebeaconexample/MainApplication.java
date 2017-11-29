@@ -4,6 +4,7 @@ import android.app.Application;
 import android.util.Log;
 
 import com.facebook.react.ReactApplication;
+import com.staltz.reactnativenode.RNNodePackage;
 import com.airbnb.android.react.maps.MapsPackage;
 import com.mackentoch.beaconsandroid.BeaconsAndroidPackage;
 import com.facebook.react.ReactInstanceManager;
@@ -27,6 +28,7 @@ public class MainApplication extends Application implements ReactApplication {
     protected List<ReactPackage> getPackages() {
       return Arrays.<ReactPackage>asList(
           new MainReactPackage(),
+            new RNNodePackage(),
             new MapsPackage(),
             new BeaconsAndroidPackage()
       );

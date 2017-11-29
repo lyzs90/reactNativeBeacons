@@ -1,7 +1,7 @@
 'use strict';
 
 import React, { Component } from 'react';
-import { isNumber } from 'lodash';
+import { isNumber, meanBy } from 'lodash';
 import {
   StyleSheet,
   Text,
@@ -13,9 +13,24 @@ import {
 } from 'react-native';
 import Beacons from 'react-native-beacons-manager';
 import MapView from 'react-native-maps';
+import RNNode from 'react-native-node';
 
 import { Beacon, trilaterate } from './helpers/trilateration';
 import mapStyle from './helpers/mapStyle';
+
+const userLocation = new Array();
+userLocation.push = function(){
+    if (this.length >= 6) {
+        this.shift();
+    }
+    return Array.prototype.push.apply(this,arguments);
+}
+userLocation.mean = function () {
+  return {
+    latitude: meanBy(this, 'latitude'),
+    longitude: meanBy(this, 'longitude')
+  }
+}
 
 class Root extends Component {
   constructor(props) {
@@ -27,13 +42,18 @@ class Root extends Component {
     this.state = {
       // region information
       whitelist: {
-        '8ce79713-008d-47fc-b40c-7ccbb3bb19e9': { lat: 1.312377, lng: 103.858576 },
+        '8ce79713-008d-47fc-b40c-7ccbb3bb19e9': { lat: 1.428723, lng: 103.839217 },
+        //{ lat: 1.312377, lng: 103.858576 }
         '6d683042-4970-3258-5832-70494230686d': { lat: 1.312373, lng: 103.858540, minor: 1 },
-        '4a4b441c-ebad-4efc-b35f-548b5439c5b1': { lat: 1.312341, lng: 103.858544 }
+        '4a4b441c-ebad-4efc-b35f-548b5439c5b1': { lat: 1.312341, lng: 103.858544 },
+
+        // test beacons
+        'd1eec23e-d820-4d63-a0c1-4e1a356c5f7f': { lat: 1.429723, lng: 103.849217 },
+        '09e34337-ae4c-465f-be8d-f57ea8ad0a92': { lat: 1.427723, lng: 103.859217 },
       },
       // React Native ListView datasource initialization
       dataSource: ds.cloneWithRows([]),
-      userLocation: {},
+      userLocation,
       markers: [],
       displayData: false,
       statusBarHeight: 1
@@ -61,13 +81,13 @@ class Root extends Component {
   }
 
   componentDidMount() {
-    //
-    // component state aware here - attach events
-    //
-    // Ranging:
     const _this = this;
     const whitelist = this.state.whitelist;
 
+    // Start background node process
+    RNNode.start()
+
+    // Callback to fire on beaconsDidRange event
     this.beaconsDidRange = DeviceEventEmitter.addListener(
       'beaconsDidRange',
       (data) => {
@@ -102,25 +122,15 @@ class Root extends Component {
           }
         })
 
+        console.log(beacons)
+
         this.setState({
           dataSource: this.state.dataSource.cloneWithRows(data.beacons),
           markers
         });
 
         if (beacons.length >= 3) {
-          /*
-          // Beacon trilateration
-          const [userLat, userLng] = trilaterate(beacons);
-          const userLocation = {
-            latitude: userLat,
-            longitude: userLng
-          }
-
-          this.setState({
-            userLocation
-          });
-          */
-          return fetch('http://192.168.1.120:3000/result', {
+          return fetch('http://localhost:3000/', {
             method: 'POST',
             headers: {
               'Accept': 'application/json',
@@ -132,10 +142,10 @@ class Root extends Component {
             .then(res => {
               console.log(res)
               return _this.setState({
-                userLocation: {
+                userLocation: _this.userLocation.push({
                   latitude: res.lat,
                   longitude: res.lng
-                }
+                })
               })
             })
             .catch(err => {
@@ -147,6 +157,7 @@ class Root extends Component {
   }
 
   componentWillUnMount() {
+    RNNode.stop();
     this.beaconsDidRange = null;
   }
 
@@ -165,8 +176,9 @@ class Root extends Component {
 
   render() {
     const { dataSource, displayData, markers, userLocation } =  this.state;
-    const userInterpolated = isNumber(userLocation.latitude) && isNumber(userLocation.longitude);
-    console.log(`interpolated: ${userInterpolated}, location: ${userLocation.latitude}, ${userLocation.longitude}`)
+    const avgUserLocation = userLocation.mean();
+    const userInterpolated = isNumber(avgUserLocation.latitude) && isNumber(avgUserLocation.longitude);
+    console.log(`interpolated: ${userInterpolated}, location: ${avgUserLocation.latitude}, ${avgUserLocation.longitude}`)
 
     return (
       <View style={{
@@ -200,7 +212,7 @@ class Root extends Component {
           {
             userInterpolated &&
             <MapView.Marker
-              coordinate={userLocation}
+              coordinate={avgUserLocation}
               pinColor={'yellow'}
             />
           }
