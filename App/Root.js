@@ -1,7 +1,7 @@
 'use strict';
 
 import React, { Component } from 'react';
-import { isNumber } from 'lodash';
+import { isNumber, meanBy } from 'lodash';
 import {
   StyleSheet,
   Text,
@@ -16,6 +16,20 @@ import MapView from 'react-native-maps';
 
 import { Beacon, trilaterate } from './helpers/trilateration';
 import mapStyle from './helpers/mapStyle';
+
+const userLocation = new Array();
+userLocation.push = function(){
+    if (this.length >= 6) {
+        this.shift();
+    }
+    return Array.prototype.push.apply(this,arguments);
+}
+userLocation.mean = function () {
+  return {
+    latitude: meanBy(this, 'latitude'),
+    longitude: meanBy(this, 'longitude')
+  }
+}
 
 class Root extends Component {
   constructor(props) {
@@ -33,7 +47,7 @@ class Root extends Component {
       },
       // React Native ListView datasource initialization
       dataSource: ds.cloneWithRows([]),
-      userLocation: {},
+      userLocation,
       markers: [],
       displayData: false,
       statusBarHeight: 1
@@ -132,10 +146,10 @@ class Root extends Component {
             .then(res => {
               console.log(res)
               return _this.setState({
-                userLocation: {
+                userLocation:  _this.userLocation.push({
                   latitude: res.lat,
                   longitude: res.lng
-                }
+                })
               })
             })
             .catch(err => {
@@ -165,8 +179,9 @@ class Root extends Component {
 
   render() {
     const { dataSource, displayData, markers, userLocation } =  this.state;
-    const userInterpolated = isNumber(userLocation.latitude) && isNumber(userLocation.longitude);
-    console.log(`interpolated: ${userInterpolated}, location: ${userLocation.latitude}, ${userLocation.longitude}`)
+    const avgUserLocation = userLocation.mean();
+    const userInterpolated = isNumber(avgUserLocation.latitude) && isNumber(avgUserLocation.longitude);
+    console.log(`interpolated: ${userInterpolated}, location: ${avgUserLocation.latitude}, ${avgUserLocation.longitude}`)
 
     return (
       <View style={{
@@ -200,7 +215,7 @@ class Root extends Component {
           {
             userInterpolated &&
             <MapView.Marker
-              coordinate={userLocation}
+              coordinate={avgUserLocation}
               pinColor={'yellow'}
             />
           }
